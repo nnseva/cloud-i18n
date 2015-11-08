@@ -15,7 +15,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('has_format', models.BooleanField(default=False, help_text='Format parts found in the phrase', verbose_name='Has Format Parts', editable=False)),
-                ('has_plural', models.BooleanField(default=False, help_text='Plural form is identified by using plural version of the library call', verbose_name='Has Plural Form')),
+                ('has_plural', models.BooleanField(default=False, help_text='Several plural forms found', verbose_name='Has Plural Form', editable=False)),
             ],
             options={
                 'verbose_name': 'Phrase',

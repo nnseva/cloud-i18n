@@ -2,6 +2,8 @@ from __future__ import unicode_literals
 from django.db import models
 from django.utils.translation import ugettext as _ # todo: self-powered version of the translation module
 
+import re
+
 # Create your models here.
 
 class Phrase(models.Model):
@@ -10,13 +12,17 @@ class Phrase(models.Model):
     an original prase itself, but is used only to connect phrase originals and translations.
     '''
     has_format = models.BooleanField(verbose_name=_("Has Format Parts"),default=False,editable=False,help_text=_("Format parts found in the phrase"))
-    has_plural = models.BooleanField(verbose_name=_("Has Plural Form"),default=False,help_text=_("Plural form is identified by using plural version of the library call"))
+    has_plural = models.BooleanField(verbose_name=_("Has Plural Form"),default=False,editable=False,help_text=_("Several plural forms found"))
+
+    HAS_FORMAT_RE = re.compile("(%[diouxXeEfFgGcCrRsS])|(%[(][a-zA-Z0-9_]+[)][diouxXeEfFgGcCrRsS])")
 
     class Meta:
         verbose_name = _("Phrase")
         verbose_name_plural = _("Phrases") # todo: django-specific Meta extension for multiple plural forms
 
     def get_message(self,lang,plural_id=None):
+        if plural_id is None and self.has_plural:
+            plural_id = self.translations.aggregate(models.Min('plural_id'))['plural_id__min']
         tr = self.translations.filter(language=lang,plural_id=plural_id)
         if tr:
             if tr[0].message:
@@ -38,8 +44,38 @@ class Phrase(models.Model):
                 return tr[0].message
         return ''
 
+    def check_has_format(self):
+        for t in self.translations.all():
+            if self.HAS_FORMAT_RE.search(t.message):
+                return True
+        return False
+
+    def check_has_plural(self):
+        for lng in self.languages():
+            if self.translations.filter(language=lng).count() > 1:
+                return True
+        return False
+
+    def languages(self):
+        return [lng['language'] for lng in self.translations.all().values('language').distinct()]
+
+    def fix_fields(self):
+        self.has_format = self.check_has_format()
+        self.has_plural = self.check_has_plural()
+
+    def fix_translations(self):
+        if not self.has_plural:
+            for t in self.translations.all():
+                if t.plural_id is not None:
+                    t.plural_id = None
+                    t.save()
+
     def __unicode__(self):
         return self.get_message('en') or "phrase: %s" % self.id
+
+    def save(self,*av,**kw):
+        self.fix_fields()
+        super(Phrase,self).save(*av,**kw)
 
 class Translation(models.Model):
     '''
@@ -59,6 +95,14 @@ class Translation(models.Model):
         )
 
     def __unicode__(self):
-        if self.plural_id:
+        if self.plural_id is not None:
             return "%s [%s]: %s" % (self.language,self.plural_id,self.message)
         return "%s: %s" % (self.language,self.message)
+
+    def save(self,*av,**kw):
+        super(Translation,self).save(*av,**kw)
+        self.phrase.save()
+
+    def delete(self,*av,**kw):
+        super(Translation,self).delete(*av,**kw)
+        self.phrase.save()
