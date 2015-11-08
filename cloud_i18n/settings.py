@@ -41,6 +41,9 @@ INSTALLED_APPS = (
 
     'lexicon',
     'project',
+
+    'guardian',
+    'rest_framework',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -104,3 +107,26 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/1.8/howto/static-files/
 
 STATIC_URL = '/static/'
+
+# Guardian
+
+AUTHENTICATION_BACKENDS = (
+    'django.contrib.auth.backends.ModelBackend', # this is default
+    'guardian.backends.ObjectPermissionBackend',
+)
+
+ANONYMOUS_USER_ID = -1
+
+GUARDIAN_RAISE_403 = True
+
+
+
+# REST
+
+REST_FRAMEWORK = {
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.DjangoModelPermissions',
+    ),
+    'PAGE_SIZE': 10,
+    
+}
