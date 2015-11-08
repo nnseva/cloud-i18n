@@ -43,6 +43,7 @@ INSTALLED_APPS = (
     'project',
 
     'guardian',
+    'django_filters',
     'rest_framework',
 )
 
@@ -128,5 +129,6 @@ REST_FRAMEWORK = {
         'rest_framework.permissions.DjangoModelPermissions',
     ),
     'PAGE_SIZE': 10,
+    'DEFAULT_FILTER_BACKENDS': ('rest_framework.filters.DjangoFilterBackend',),
     
 }

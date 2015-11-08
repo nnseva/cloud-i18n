@@ -17,18 +17,14 @@ class PhraseSerializer(serializers.HyperlinkedModelSerializer):
 class PhraseViewSet(viewsets.ModelViewSet):
     queryset = models.Phrase.objects.all()
     serializer_class = PhraseSerializer
+    filter_fields = ('has_format', 'has_plural','translations__language')
 
 class TranslationSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = models.Translation
-        fields = ('url','language','plural_forms','plural_id','message')
+        fields = ('url','language','plural_forms','plural_id','message','phrase')
 
 class TranslationViewSet(viewsets.ModelViewSet):
     queryset = models.Translation.objects.all()
     serializer_class = TranslationSerializer
-
-from rest_framework.routers import SimpleRouter
-
-router = SimpleRouter()
-router.register(r'phrases', PhraseViewSet)
-router.register(r'translations', TranslationViewSet)
+    filter_fields = ('language','plural_forms','plural_id','message')
