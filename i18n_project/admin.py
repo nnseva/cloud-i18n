@@ -1,5 +1,6 @@
 from django.contrib import admin
 from . import models
+from django.contrib.auth import models as auth_models
 from django.utils.translation import ugettext_lazy as _ # todo: self-powered version of the translation module
 
 # Register your models here.
@@ -7,12 +8,24 @@ class ProjectUserInline(admin.TabularInline):
     model = models.ProjectUser
     extra = 0
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'user':
+            kwargs["queryset"] = auth_models.User.objects.filter(projects__in=request.user.projects.all())
+        return super(ProjectUserInline, self).formfield_for_foreignkey(db_field, request, **kwargs)
+
 class ProjectAdmin(admin.ModelAdmin):
     list_display = ('url','name')
 
     inlines = [
         ProjectUserInline,
     ]
+
+    def get_queryset(self, request):
+        if request.user.is_superuser:
+            r = models.Project.objects.all()
+        else:
+            r = models.Project.objects.filter(users__user=request.user)
+        return r
 
     def save_model(self,request, obj, form, change):
         super(ProjectAdmin,self).save_model(request, obj, form, change)
@@ -74,6 +87,8 @@ class PhraseAdmin(admin.ModelAdmin):
                 kwargs["queryset"] = models.Translation.objects.filter(phrase__id=id)
             else:
                 kwargs["queryset"] = models.Translation.objects.none()
+        if db_field.name == 'project':
+            kwargs["queryset"] = models.Project.objects.filter(users__user=request.user)
         return super(PhraseAdmin, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
     def save_formset(self, request, form, formset, change):
@@ -88,5 +103,12 @@ class PhraseAdmin(admin.ModelAdmin):
             else:
                 phrase.orig_identity = phrase.translations.all()[0]
             phrase.save()
+
+    def get_queryset(self, request):
+        if request.user.is_superuser:
+            r = models.ProjectPhrase.objects.all()
+        else:
+            r = models.ProjectPhrase.objects.filter(project__users__user=request.user)
+        return r
 
 admin.site.register(models.ProjectPhrase,PhraseAdmin)
