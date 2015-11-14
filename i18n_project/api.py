@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
-from django.utils.translation import ugettext as _ # todo: self-powered version of the translation module
-
+from django.utils.translation import ugettext_lazy as _ # todo: self-powered version of the translation module
 
 from rest_framework import viewsets
 from rest_framework import serializers

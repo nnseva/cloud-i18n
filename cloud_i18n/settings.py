@@ -39,8 +39,7 @@ INSTALLED_APPS = (
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    'lexicon',
-    'project',
+    'i18n_project',
 
     'guardian',
     'django_filters',
