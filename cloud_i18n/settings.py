@@ -32,18 +32,23 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 # Application definition
 
 INSTALLED_APPS = (
+    # Local
+    'i18n_project',
+
+    # Applications to extend django
+    'django_extensions',
+    'guardian',
+    'django_filters',
+    'rest_framework',
+    'social.apps.django_app.default',
+
+    # Django standard applications
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
-    'i18n_project',
-
-    'guardian',
-    'django_filters',
-    'rest_framework',
 )
 
 MIDDLEWARE_CLASSES = (
@@ -62,7 +67,9 @@ ROOT_URLCONF = 'cloud_i18n.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [
+            os.path.join(BASE_DIR,'templates'),
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -70,6 +77,11 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                # social auth
+                'social.apps.django_app.context_processors.backends',
+                'social.apps.django_app.context_processors.login_redirect',
+                #local
+                'i18n_project.psa.context_processors.social_backends',
             ],
         },
     },
@@ -108,18 +120,18 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-# Guardian
+#For guardian
 
 AUTHENTICATION_BACKENDS = (
+    # django standard
     'django.contrib.auth.backends.ModelBackend', # this is default
+    # guardian (???)
     'guardian.backends.ObjectPermissionBackend',
 )
 
 ANONYMOUS_USER_ID = -1
 
 GUARDIAN_RAISE_403 = True
-
-
 
 # REST
 
@@ -131,3 +143,46 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': ('rest_framework.filters.DjangoFilterBackend',),
     
 }
+
+# SOCIAL AUTH
+SOCIAL_AUTH_USER_MODEL = 'auth.User'
+SOCIAL_AUTH_USERNAME_IS_FULL_EMAIL = True
+SOCIAL_AUTH_URL_NAMESPACE = 'social'
+SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/admin/'
+
+SOCIAL_AUTH_PIPELINE = (
+    'social.pipeline.social_auth.social_details',
+    'social.pipeline.social_auth.social_uid',
+    'social.pipeline.social_auth.auth_allowed',
+    'social.pipeline.social_auth.social_user',
+    'social.pipeline.user.get_username',
+    'social.pipeline.social_auth.associate_by_email',  # <--- enable this one
+    'social.pipeline.user.create_user',
+    'social.pipeline.social_auth.associate_user',
+    'social.pipeline.social_auth.load_extra_data',
+    'social.pipeline.user.user_details',
+    'i18n_project.psa.pipeline.user_admin_enable',
+)
+
+# BACKENDS
+AUTHENTICATION_BACKENDS = (
+    # social auth
+    #'social.backends.open_id.OpenIdAuth',
+    #'social.backends.google.GoogleOpenId',
+    #'social.backends.google.GoogleOAuth2',
+    #'social.backends.google.GoogleOAuth',
+    #'social.backends.twitter.TwitterOAuth',
+    'social.backends.bitbucket.BitbucketOAuth2',
+    'social.backends.github.GithubOAuth2',
+) + AUTHENTICATION_BACKENDS
+
+SOCIAL_AUTH_BITBUCKET_OAUTH2_KEY = 'a3rBwmuudVVfgdQE6E'
+SOCIAL_AUTH_BITBUCKET_OAUTH2_SECRET = 'WbQwaFU6yYG87EsmdG3M6379DN5vuydq'
+SOCIAL_AUTH_GITHUB_KEY = '091d57ed4ea687f4516a'
+SOCIAL_AUTH_GITHUB_SECRET = 'fdbe21206605466cd186c952245640a119f34d72'
+SOCIAL_AUTH_GITHUB_SCOPE = ['user:email','public_repo']
+
+# LOCAL
+USER_REGISTERED_GROUPS = [ # Groups to be connected to the just registered user
+    'Project Admin',
+]

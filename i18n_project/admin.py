@@ -31,7 +31,6 @@ class ProjectAdmin(admin.ModelAdmin):
         super(ProjectAdmin,self).save_model(request, obj, form, change)
         if not change: # a new one
             obj.users.create(user=request.user)
-            
 
 admin.site.register(models.Project,ProjectAdmin)
 
