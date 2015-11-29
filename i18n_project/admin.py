@@ -2,6 +2,7 @@ from django.contrib import admin
 from . import models
 from django.contrib.auth import models as auth_models
 from django.utils.translation import ugettext_lazy as _ # todo: self-powered version of the translation module
+from django.db.models import F,Q,Count,Max,Min,Avg
 
 # Register your models here.
 class ProjectUserInline(admin.TabularInline):
@@ -15,6 +16,7 @@ class ProjectUserInline(admin.TabularInline):
 
 class ProjectAdmin(admin.ModelAdmin):
     list_display = ('url','name')
+    search_fields = ('url','name')
 
     inlines = [
         ProjectUserInline,
@@ -36,28 +38,67 @@ admin.site.register(models.Project,ProjectAdmin)
 
 class VisibleProjectsFilter(admin.SimpleListFilter):
     title = models.Project._meta.verbose_name
-    parameter_name = 'project'
+    parameter_name = 'project_id'
 
     def lookups(self, request, model_admin):
         if request.user.is_superuser:
-            r = [(p,unicode(p)) for p in models.Project.objects.all()]
+            r = [(p.id,unicode(p)) for p in models.Project.objects.all()]
         else:
-            r = [(p.project,unicode(p.project)) for p in request.user.projects.all()]
+            r = [(p.project.id,unicode(p.project)) for p in request.user.projects.all()]
         return r
 
     def queryset(self,request, queryset):
         if self.value():
-            return queryset.filter(project=self.value())
+            return queryset.filter(project_id=self.value())
         return queryset
 
+class HasModeFilter(admin.SimpleListFilter):
+    title = models.ProjectPhrase.get_has_mode.short_description
+    parameter_name = 'has_mode'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('True',_("Yes")),
+            ('False',_("No"))
+        )
+
+    def queryset(self,request, queryset):
+        if self.value() == 'True':
+            return queryset.annotate(trs=Count('translations'),lngs=Count('translations__language',distinct=True)).filter(trs__gt=F('lngs'))
+        elif self.value() == 'False':
+            return queryset.annotate(trs=Count('translations'),lngs=Count('translations__language',distinct=True)).filter(trs=F('lngs'))
+        return queryset
+
+from django.utils.safestring import mark_safe
 class TranslationInline(admin.StackedInline):
     model = models.Translation
     extra = 0
+    fields = [f.name for f in model._meta.fields] + ['denormalize_message_formatted']
+    readonly_fields = ['denormalize_message_formatted']
+
+    def denormalize_message_formatted(self,obj):
+        replacements = obj.options.get('replacements',[])
+        prefix = obj.options.get('prefix','') or ''
+        suffix = obj.options.get('suffix','') or ''
+        replacements.sort(key=lambda x:x['start'])
+        msg = obj.message
+        msg_ret = ""
+        start = 0
+        for r in replacements:
+            msg_ret += '%s<span style="background-color:lightblue">%s</span>' % (msg[start:r['start']],r['local'])
+            start = r['stop']
+        msg_ret += msg[start:]
+        return mark_safe('<pre>%(prefix)s%(msg)s%(suffix)s</pre>' % {
+            'msg':msg_ret,
+            'prefix':prefix,
+            'suffix':suffix
+        })
+    denormalize_message_formatted.short_description = _("Formatted")
 
 class PhraseAdmin(admin.ModelAdmin):
 
     def get_list_display(self,*av,**kw):
-        return ('project','identity','has_mode')
+        return ('identity','project','has_mode')
 
     inlines = [
         TranslationInline,
@@ -67,17 +108,23 @@ class PhraseAdmin(admin.ModelAdmin):
         return unicode(obj)
 
     def get_list_filter(self,request,*av,**kw):
-        return (VisibleProjectsFilter,)
+        return (VisibleProjectsFilter,HasModeFilter)
 
     def get_fields(self,request,obj=None):
         if not obj:
-            return ['project',]+[im+'_identity' for im,imv in models.Project._meta.get_field_by_name('identity_method')[0].choices if im != 'orig']
-        return ('project',obj.project.identity_method+'_identity')
+            return ['project']+[im+'_identity' for im,imv in models.Project._meta.get_field_by_name('identity_method')[0].choices if im != 'orig']+['options']
+        return ('project',obj.project.identity_method+'_identity','options')
+
+    def get_search_fields(self,request,*av,**kw):
+        return ('enum_identity','int_identity','translations__message')
 
     def get_readonly_fields(self,request,obj=None):
         if not obj:
             return ()
         return ('project',)
+
+    def get_ordering(self,request):
+        return ['enum_identity','int_identity','orig_identity__message']
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == 'orig_identity':

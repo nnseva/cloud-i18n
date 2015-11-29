@@ -5,6 +5,8 @@ from django.core.exceptions import ValidationError
 
 import re
 
+from jsoneditor.fields.django_json_field import JSONField
+
 # Create your models here.
 class Project(models.Model):
     '''
@@ -18,6 +20,7 @@ class Project(models.Model):
         ('enum',_("Enum")),
         ('int',_("Integer ID")),
     ))
+    options = JSONField(verbose_name=_("Options"),null=True,blank=True,help_text=_("The translation options, like language modes formula"))
 
     class Meta:
         verbose_name = _("Project")
@@ -25,6 +28,31 @@ class Project(models.Model):
 
     def __unicode__(self):
         return "%s: %s" % (self.url,self.name)
+
+    def get_phrase(self,msgid):
+        if self.identity_method == 'int':
+            q = self.phrases.filter(int_identity=int(msgid))
+        elif self.identity_method == 'enum':
+            q = self.phrases.filter(enum_identity=msgid)
+        elif self.identity_method == 'orig':
+            q = self.phrases.filter(orig_identity__message=msgid)
+        return q[0] if q else None
+
+    def get_or_create_phrase(self,msgid,srclang='en'):
+        p = self.get_phrase(msgid)
+        c = False
+        if not p:
+            c = True
+            if self.identity_method == 'int':
+                p = self.phrases.create(int_identity=int(msgid))
+            elif self.identity_method == 'enum':
+                p = self.phrases.create(enum_identity=msgid)
+            elif self.identity_method == 'orig':
+                p = self.phrases.create()
+                t = p.translations.create(message=msgid,language=srclang)
+                p.orig_identity = t
+                p.save()
+        return p,c
 
 class ProjectUser(models.Model):
     '''
@@ -52,6 +80,7 @@ class ProjectPhrase(models.Model):
     enum_identity = models.CharField(max_length=64,verbose_name=_("Enum Identity"),db_index=True,null=True,blank=True,help_text=_("Enum Identity of the phrase within this project"))
     int_identity = models.IntegerField(verbose_name=_("Integer Identity"),db_index=True,null=True,blank=True,help_text=_("Integer Identity of the phrase within this project"))
     orig_identity = models.ForeignKey("i18n_project.Translation",verbose_name=_("Original Identity"),db_index=True,null=True,blank=True,on_delete=models.SET_NULL, help_text=_("Original Identity of the phrase within this project"),related_name="project_phrases")
+    options = JSONField(verbose_name=_("Options"),null=True,blank=True,help_text=_("The translation options, like language modes formula"))
     project = models.ForeignKey(Project,verbose_name=_("Project"),help_text=_("Project containing this phrase"),related_name="phrases")
 
     class Meta:
@@ -140,8 +169,7 @@ class Translation(models.Model):
     message = models.TextField(verbose_name=_("Message"),db_index=True,help_text=_("The phrase message in the particular language"))
 
     mode_id = models.IntegerField(verbose_name=_("Mode ID"),null=True,blank=True,help_text=_("Mode ID if the phrase has several modes depending on parameters"))
-    mode_formula = models.TextField(verbose_name=_("Mode Formula"),null=True,blank=True,help_text=_("The mode ID selection formula for the phrase, plural form selection f.e."))
-    placeholders = models.TextField(verbose_name=_("Placeholders"),null=True,blank=True,help_text=_("Placeholders extracted from the message"))
+    options = JSONField(verbose_name=_("Options"),null=True,blank=True,help_text=_("The translation options, like collected placehosders and modes formula"))
 
     class Meta:
         verbose_name = _("Translation")

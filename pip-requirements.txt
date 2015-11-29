@@ -1,0 +1,10 @@
+django-extensions
+django-guardian
+django-filter
+markdown
+djangorestframework
+python-social-auth
+django-json-field
+translate-toolkit
+
+git+git://github.com/nnseva/django-jsoneditor.git

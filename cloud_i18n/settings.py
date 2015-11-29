@@ -41,6 +41,7 @@ INSTALLED_APPS = (
     'django_filters',
     'rest_framework',
     'social.apps.django_app.default',
+    'jsoneditor',
 
     # Django standard applications
     'django.contrib.admin',

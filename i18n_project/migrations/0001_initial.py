@@ -4,6 +4,7 @@ from __future__ import unicode_literals
 from django.db import models, migrations
 import django.db.models.deletion
 from django.conf import settings
+import jsoneditor.fields.django_json_field
 
 
 class Migration(migrations.Migration):
@@ -21,6 +22,7 @@ class Migration(migrations.Migration):
                 ('name', models.CharField(help_text='Name of the project', max_length=64, verbose_name='Name', db_index=True)),
                 ('description', models.TextField(help_text='Description of the project', null=True, verbose_name='Description', blank=True)),
                 ('identity_method', models.CharField(help_text='Phrase identity method', max_length=8, verbose_name='Identity Method', choices=[('orig', 'Original Phrase'), ('enum', 'Enum'), ('int', 'Integer ID')])),
+                ('options', jsoneditor.fields.django_json_field.JSONField(default='null', help_text='The translation options, like language modes formula', null=True, verbose_name='Options', blank=True)),
             ],
             options={
                 'verbose_name': 'Project',
@@ -33,6 +35,7 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('enum_identity', models.CharField(max_length=64, blank=True, help_text='Enum Identity of the phrase within this project', null=True, verbose_name='Enum Identity', db_index=True)),
                 ('int_identity', models.IntegerField(help_text='Integer Identity of the phrase within this project', null=True, verbose_name='Integer Identity', db_index=True, blank=True)),
+                ('options', jsoneditor.fields.django_json_field.JSONField(default='null', help_text='The translation options, like language modes formula', null=True, verbose_name='Options', blank=True)),
             ],
             options={
                 'verbose_name': 'Project Phrase',
@@ -58,8 +61,7 @@ class Migration(migrations.Migration):
                 ('language', models.CharField(help_text="The phrase language in form of two-char or four-char identity like 'en' or 'ru_RU'", max_length=10, verbose_name='Language')),
                 ('message', models.TextField(help_text='The phrase message in the particular language', verbose_name='Message', db_index=True)),
                 ('mode_id', models.IntegerField(help_text='Mode ID if the phrase has several modes depending on parameters', null=True, verbose_name='Mode ID', blank=True)),
-                ('mode_formula', models.TextField(help_text='The mode ID selection formula for the phrase, plural form selection f.e.', null=True, verbose_name='Mode Formula', blank=True)),
-                ('placeholders', models.TextField(help_text='Placeholders extracted from the message', null=True, verbose_name='Placeholders', blank=True)),
+                ('options', jsoneditor.fields.django_json_field.JSONField(default='null', help_text='The translation options, like collected placehosders and modes formula', null=True, verbose_name='Options', blank=True)),
                 ('phrase', models.ForeignKey(related_name='translations', verbose_name='Phrase', to='i18n_project.ProjectPhrase', help_text='Phrase identity')),
             ],
             options={
