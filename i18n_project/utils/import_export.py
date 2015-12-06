@@ -17,10 +17,12 @@ def normalize_message(unit,msg,options):
     if not msg:
         return msg
     options['prefix'],msg,options['suffix'] = STRIP_RE.match(msg).groups()
-    options['warnings'] = []
+    options['formats'] = options.get('formats',{})
     pattern = '[##]'
     for f in FORMATS:
         if unit.hastypecomment(f):
+            options['format'] = f
+            options['formats'][f] = options['formats'].get(f,{})
             start = 0
             reps = []
             while 42:
@@ -35,10 +37,7 @@ def normalize_message(unit,msg,options):
                     'local':rep,
                 })
                 start = m.start()+len(pattern)
-            options['replacements'] = reps
-        else:
-            if FORMATS[f].search(msg):
-                options['warnings'].append('The message probably contains a %s string' % f)
+            options['formats'][f]['replacements'] = reps
     return msg
 
 def import_file(file, prj, lang=None):

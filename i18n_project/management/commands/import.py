@@ -40,6 +40,7 @@ class Command(BaseCommand):
         if not project_name:
             project_name = project_url
         language = options['language']
+        prj = None
         if project_url:
             prj = models.Project.objects.filter(url=project_url)
             if prj:

@@ -77,7 +77,10 @@ class TranslationInline(admin.StackedInline):
     readonly_fields = ['denormalize_message_formatted']
 
     def denormalize_message_formatted(self,obj):
-        replacements = obj.options.get('replacements',[])
+        replacements = []
+        if obj.options.get('format'):
+            f = obj.options['format']
+            replacements = obj.options['formats'][f].get('replacements',[])
         prefix = obj.options.get('prefix','') or ''
         suffix = obj.options.get('suffix','') or ''
         replacements.sort(key=lambda x:x['start'])
