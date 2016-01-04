@@ -69,14 +69,44 @@ class HasModeFilter(admin.SimpleListFilter):
             return queryset.annotate(trs=Count('translations'),lngs=Count('translations__language',distinct=True)).filter(trs=F('lngs'))
         return queryset
 
-from django.utils.safestring import mark_safe
-class TranslationInline(admin.StackedInline):
-    model = models.Translation
-    extra = 0
-    fields = [f.name for f in model._meta.fields] + ['denormalize_message_formatted']
-    readonly_fields = ['denormalize_message_formatted']
+class HasFormatFilter(admin.SimpleListFilter):
+    title = models.ProjectPhrase.get_has_format.short_description
+    parameter_name = 'has_format'
 
-    def denormalize_message_formatted(self,obj):
+    def lookups(self, request, model_admin):
+        return (
+            ('True',_("Yes")),
+            ('False',_("No"))
+        )
+
+    def queryset(self,request, queryset):
+        if self.value() == 'True':
+            return queryset.filter(translations__options__contains='"format":')
+        elif self.value() == 'False':
+            return queryset.exclude(translations__options__contains='"format":')
+        return queryset
+
+class HasFuzzyFilter(admin.SimpleListFilter):
+    title = models.ProjectPhrase.get_has_fuzzy.short_description
+    parameter_name = 'has_fuzzy'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('True',_("Yes")),
+            ('False',_("No"))
+        )
+
+    def queryset(self,request, queryset):
+        if self.value() == 'True':
+            return queryset.filter(translations__options__contains='"fuzzy":')
+        elif self.value() == 'False':
+            return queryset.exclude(translations__options__contains='"fuzzy":')
+        return queryset
+
+
+from django.utils.safestring import mark_safe
+
+def _message_formatted(obj):
         replacements = []
         if obj.options.get('format'):
             f = obj.options['format']
@@ -96,12 +126,16 @@ class TranslationInline(admin.StackedInline):
             'prefix':prefix,
             'suffix':suffix
         })
-    denormalize_message_formatted.short_description = _("Formatted")
+
+class TranslationInline(admin.StackedInline):
+    model = models.Translation
+    extra = 0
+    readonly_fields = ['message']
 
 class PhraseAdmin(admin.ModelAdmin):
 
     def get_list_display(self,*av,**kw):
-        return ('identity','project','has_mode')
+        return ('identity','project','has_mode','has_format','has_fuzzy')
 
     inlines = [
         TranslationInline,
@@ -111,7 +145,7 @@ class PhraseAdmin(admin.ModelAdmin):
         return unicode(obj)
 
     def get_list_filter(self,request,*av,**kw):
-        return (VisibleProjectsFilter,HasModeFilter)
+        return (VisibleProjectsFilter,HasModeFilter,HasFormatFilter,HasFuzzyFilter)
 
     def get_fields(self,request,obj=None):
         if not obj:

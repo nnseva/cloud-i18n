@@ -59,7 +59,8 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.AutoField(verbose_name='ID', serialize=False, auto_created=True, primary_key=True)),
                 ('language', models.CharField(help_text="The phrase language in form of two-char or four-char identity like 'en' or 'ru_RU'", max_length=10, verbose_name='Language')),
-                ('message', models.TextField(help_text='The phrase message in the particular language', verbose_name='Message', db_index=True)),
+                ('message', models.TextField(help_text='The normalized phraze message in the particular language', verbose_name='Message', editable=False, db_index=True)),
+                ('original', models.TextField(help_text='The original phrase message in the particular language', verbose_name='Original', db_index=True)),
                 ('mode_id', models.IntegerField(help_text='Mode ID if the phrase has several modes depending on parameters', null=True, verbose_name='Mode ID', blank=True)),
                 ('options', jsoneditor.fields.django_json_field.JSONField(default='null', help_text='The translation options, like collected placehosders and modes formula', null=True, verbose_name='Options', blank=True)),
                 ('phrase', models.ForeignKey(related_name='translations', verbose_name='Phrase', to='i18n_project.ProjectPhrase', help_text='Phrase identity')),

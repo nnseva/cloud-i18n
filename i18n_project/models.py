@@ -38,22 +38,6 @@ class Project(models.Model):
             q = self.phrases.filter(orig_identity__message=msgid)
         return q[0] if q else None
 
-    def get_or_create_phrase(self,msgid,srclang='en'):
-        p = self.get_phrase(msgid)
-        c = False
-        if not p:
-            c = True
-            if self.identity_method == 'int':
-                p = self.phrases.create(int_identity=int(msgid))
-            elif self.identity_method == 'enum':
-                p = self.phrases.create(enum_identity=msgid)
-            elif self.identity_method == 'orig':
-                p = self.phrases.create()
-                t = p.translations.create(message=msgid,language=srclang)
-                p.orig_identity = t
-                p.save()
-        return p,c
-
 class ProjectUser(models.Model):
     '''
     Translation project user. Every user can access to the translation in readonly mode,
@@ -126,29 +110,52 @@ class ProjectPhrase(models.Model):
 
     has_mode = property(get_has_mode)
 
+    def get_has_format(self):
+        return bool(self.translations.filter(options__contains='"format":'))
+    get_has_format.short_description = _("Has Format")
+
+    has_format = property(get_has_format)
+
+    def get_has_fuzzy(self):
+        return bool(self.translations.filter(options__contains='"fuzzy":'))
+    get_has_fuzzy.short_description = _("Has Fuzzy")
+
+    has_fuzzy = property(get_has_fuzzy)
+
     def get_message(self,lang,mode_id=None):
+        tr = self.get_tr(lang,mode_id)
+        if tr:
+            return tr.message
+        return ''
+
+    def get_original(self,lang,mode_id=None):
+        tr = self.get_tr(lang,mode_id)
+        if tr:
+            return tr.original
+        return ''
+
+    def get_tr(self,lang,mode_id=None):
         if mode_id is None and self.has_mode:
             mode_id = self.translations.aggregate(models.Min('mode_id'))['mode_id__min']
         tr = self.translations.filter(language=lang,mode_id=mode_id)
         if tr:
             if tr[0].message:
-                return tr[0].message
+                return tr[0]
         if '_' in lang:
             lang = lang.split('_')[0]
             tr = self.translations.filter(language=lang,mode_id=mode_id)
             if tr:
                 if tr[0].message:
-                    return tr[0].message
+                    return tr[0]
         lang = 'en'
         tr = self.translations.filter(language=lang,mode_id=mode_id)
         if tr:
             if tr[0].message:
-                return tr[0].message
+                return tr[0]
         tr = self.translations.all()
         if tr:
             if tr[0].message:
-                return tr[0].message
-        return ''
+                return tr[0]
 
     def fix_translations(self):
         if not self.has_mode:
@@ -166,7 +173,8 @@ class Translation(models.Model):
     '''
     phrase = models.ForeignKey(ProjectPhrase,verbose_name=_("Phrase"),help_text=_("Phrase identity"),related_name="translations")
     language = models.CharField(max_length=10,verbose_name=_("Language"),help_text=_("The phrase language in form of two-char or four-char identity like 'en' or 'ru_RU'"))
-    message = models.TextField(verbose_name=_("Message"),db_index=True,help_text=_("The phrase message in the particular language"))
+    message = models.TextField(verbose_name=_("Message"),db_index=True,editable=False,help_text=_("The normalized phraze message in the particular language"))
+    original = models.TextField(verbose_name=_("Original"),db_index=True,help_text=_("The original phrase message in the particular language"))
 
     mode_id = models.IntegerField(verbose_name=_("Mode ID"),null=True,blank=True,help_text=_("Mode ID if the phrase has several modes depending on parameters"))
     options = JSONField(verbose_name=_("Options"),null=True,blank=True,help_text=_("The translation options, like collected placehosders and modes formula"))
@@ -183,3 +191,13 @@ class Translation(models.Model):
         if self.mode_id is not None:
             return "%s [%s]: %s" % (self.language,self.mode_id,self.message)
         return "%s: %s" % (self.language,self.message)
+
+    def normalize(self):
+        '''Convert original to normalized message using current settings'''
+        from utils.import_export import extract_message
+        self.options = self.options or {}
+        self.message = extract_message(self.original,self.options)
+
+    def save(self,*av,**kw):
+        self.normalize()
+        super(Translation,self).save(*av,**kw)
