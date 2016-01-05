@@ -150,7 +150,7 @@ class PhraseAdmin(admin.ModelAdmin):
     def get_fields(self,request,obj=None):
         if not obj:
             return ['project']+[im+'_identity' for im,imv in models.Project._meta.get_field_by_name('identity_method')[0].choices if im != 'orig']+['options']
-        return ('project',obj.project.identity_method+'_identity','options')
+        return ('project',obj.project.identity_method+'_identity','tags','options')
 
     def get_search_fields(self,request,*av,**kw):
         return ('enum_identity','int_identity','translations__message')

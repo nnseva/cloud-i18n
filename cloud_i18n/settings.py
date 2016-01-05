@@ -42,6 +42,7 @@ INSTALLED_APPS = (
     'rest_framework',
     'social.apps.django_app.default',
     'jsoneditor',
+    'taggit',
 
     # Django standard applications
     'django.contrib.admin',
@@ -187,3 +188,5 @@ SOCIAL_AUTH_GITHUB_SCOPE = ['user:email','public_repo']
 USER_REGISTERED_GROUPS = [ # Groups to be connected to the just registered user
     'Project Admin',
 ]
+
+TAGGIT_CASE_INSENSITIVE = True

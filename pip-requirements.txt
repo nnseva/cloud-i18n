@@ -6,5 +6,6 @@ djangorestframework
 python-social-auth
 django-json-field
 translate-toolkit
+django-taggit
 
 git+git://github.com/nnseva/django-jsoneditor.git

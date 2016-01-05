@@ -8,6 +8,8 @@ import re
 
 from jsoneditor.fields.django_json_field import JSONField
 
+from taggit.managers import TaggableManager
+
 # Create your models here.
 class Project(models.Model):
     '''
@@ -22,6 +24,7 @@ class Project(models.Model):
         ('int',_("Integer ID")),
     ))
     options = JSONField(verbose_name=_("Options"),null=True,blank=True,help_text=_("The translation options, like language modes formula"))
+    tags = TaggableManager(verbose_name=_("Tags"), help_text=_("A comma-separated list of tags"), through=None, blank=True)
 
     class Meta:
         verbose_name = _("Project")
@@ -67,6 +70,7 @@ class ProjectPhrase(models.Model):
     orig_identity = models.ForeignKey("i18n_project.Translation",verbose_name=_("Original Identity"),db_index=True,null=True,blank=True,on_delete=models.SET_NULL, help_text=_("Original Identity of the phrase within this project"),related_name="project_phrases")
     options = JSONField(verbose_name=_("Options"),null=True,blank=True,help_text=_("The translation options, like language modes formula"))
     project = models.ForeignKey(Project,verbose_name=_("Project"),help_text=_("Project containing this phrase"),related_name="phrases")
+    tags = TaggableManager(verbose_name=_("Tags"), help_text=_("A comma-separated list of tags"), through=None, blank=True)
 
     class Meta:
         verbose_name = _("Project Phrase")
