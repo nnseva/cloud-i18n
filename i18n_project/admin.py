@@ -15,6 +15,7 @@ class ProjectUserInline(admin.TabularInline):
         return super(ProjectUserInline, self).formfield_for_foreignkey(db_field, request, **kwargs)
 
 class ProjectAdmin(admin.ModelAdmin):
+    fields = ('url','name','description','identity_method','tags','options')
     list_display = ('url','name')
     search_fields = ('url','name')
 

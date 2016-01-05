@@ -54,6 +54,7 @@ class Command(BaseCommand):
                 return
             prj = models.Project(name=project_name,url=project_url,identity_method='orig') # todo: depending on file type?
         else:
+            prj = prj[0]
             if project_name:
                 prj.name = project_name
             if project_url:

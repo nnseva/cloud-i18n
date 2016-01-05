@@ -69,8 +69,6 @@ def import_file(file, prj, lang=None):
         tlang = unit.gettargetlanguage() or lang
         slang = unit.getsourcelanguage() or 'en'
         phrase_options = extract_formats(unit)
-        if unit.hasplural():
-            phrase_options['mode_formula'] = f.getheaderplural()[1]
 
         if prj.identity_method == 'orig':
             message_options = {}
@@ -109,6 +107,8 @@ def import_file(file, prj, lang=None):
                 t.mode_id = mode_id
                 t.language = tlang
                 t.original = targets[mode_id]
+                t.options = {}
+                t.options['mode_formula'] = f.getheaderplural()[1]
                 t.save()
         else:
             t,tc = p.translations.get_or_create(language=tlang)
