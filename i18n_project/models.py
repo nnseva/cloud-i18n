@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 from django.db import models
 from django.utils.translation import ugettext_lazy as _ # todo: self-powered version of the translation module
 from django.core.exceptions import ValidationError
+from django.db.models import F,Q,Count,Max,Min,Avg
 
 import re
 
@@ -102,23 +103,23 @@ class ProjectPhrase(models.Model):
     languages = property(get_languages)
 
     def get_has_mode(self):
-        for lng in self.languages:
-            if self.translations.filter(language=lng).count() > 1:
-                return True
-        return False
+        return bool(type(self).objects.filter(id=self.id).annotate(mds=Count('translations__mode_id')).filter(mds__gt=1))
     get_has_mode.short_description = _("Has Mode")
+    get_has_mode.boolean = True
 
     has_mode = property(get_has_mode)
 
     def get_has_format(self):
-        return bool(self.translations.filter(options__contains='"format":'))
+        return bool(self.options and self.options.get('format',None))
     get_has_format.short_description = _("Has Format")
+    get_has_format.boolean = True
 
     has_format = property(get_has_format)
 
     def get_has_fuzzy(self):
-        return bool(self.translations.filter(options__contains='"fuzzy":'))
+        return bool(self.options and self.options.get('fuzzy',None))
     get_has_fuzzy.short_description = _("Has Fuzzy")
+    get_has_fuzzy.boolean = True
 
     has_fuzzy = property(get_has_fuzzy)
 
@@ -196,7 +197,7 @@ class Translation(models.Model):
         '''Convert original to normalized message using current settings'''
         from utils.import_export import extract_message
         self.options = self.options or {}
-        self.message = extract_message(self.original,self.options)
+        self.message = extract_message(self.original,self.phrase.options,self.options)
 
     def save(self,*av,**kw):
         self.normalize()

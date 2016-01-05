@@ -13,17 +13,17 @@ FORMATS = {
     # TODO: ALL OTHER FORMATS
 }
 
-def extract_message(msg,options):
-    f = options.get('format',None)
+def extract_message(msg,phrase_options,message_options):
+    f = phrase_options.get('format',None)
     if not f:
         return msg
     if msg:
-        options['prefix'],msg,options['suffix'] = STRIP_RE.match(msg).groups()
+        message_options['prefix'],msg,message_options['suffix'] = STRIP_RE.match(msg).groups()
     else:
-        options['prefix'],msg,options['suffix'] = '','',''
-    options['formats'] = options.get('formats',{})
+        message_options['prefix'],msg,message_options['suffix'] = '','',''
+    message_options['formats'] = {}
     pattern = '[##]'
-    options['formats'][f] = options['formats'].get(f,{})
+    message_options['formats'][f] = {}
     start = 0
     reps = []
     while 42:
@@ -39,10 +39,9 @@ def extract_message(msg,options):
         })
         start = m.start()+len(pattern)
     if reps:
-        options['formats'][f]['replacements'] = reps
+        message_options['formats'][f]['replacements'] = reps
     else:
-        del options['format']
-        del options['formats']
+        del message_options['formats']
     return msg
 
 def extract_formats(unit,options=None):
@@ -51,6 +50,9 @@ def extract_formats(unit,options=None):
     for f in FORMATS:
         if unit.hastypecomment(f):
             options['format'] = f
+    options['fuzzy'] = bool(unit.isfuzzy())
+    if not options['fuzzy']:
+        del options['fuzzy']
     return options
 
 def import_file(file, prj, lang=None):
@@ -66,34 +68,37 @@ def import_file(file, prj, lang=None):
     for unit in f.getunits():
         tlang = unit.gettargetlanguage() or lang
         slang = unit.getsourcelanguage() or 'en'
-        options = extract_formats(unit)
+        phrase_options = extract_formats(unit)
+        if unit.hasplural():
+            phrase_options['mode_formula'] = f.getheaderplural()[1]
 
         if prj.identity_method == 'orig':
-            msgid = extract_message(unit.getsource(),options)
+            message_options = {}
+            msgid = extract_message(unit.getsource(),phrase_options,message_options)
             p = prj.get_phrase(msgid)
             if not p:
-                p = prj.phrases.create()
-                t = p.translations.create(original=unit.getsource(),language=slang,options=options)
+                p = prj.phrases.create(options=phrase_options)
+                t = p.translations.create(original=unit.getsource(),language=slang)
                 p.orig_identity = t
-                p.save()
             else:
+                p.options = phrase_options
                 t = p.translations.get(message=msgid,language=slang)
                 t.original = unit.getsource()
-                t.options = options
                 t.save()
         else:
             msgid=unit.getsource()
             p = prj.get_phrase(msgid)
             if not p:
                 identity = dict(int_identity=int(msgid)) if prj.identity_method == 'int' else dict(enum_identity=msgid)
-                p = prj.phrases.create(**identity)
-
+                p = prj.phrases.create(options=phrase_options,**identity)
+            else:
+                p.options = phrase_options
+        p.save()
         if unit.hasplural():
             if prj.identity_method == 'orig':
                 p.orig_identity.mode_id = 0
                 p.orig_identity.save()
                 t,tc = p.translations.get_or_create(language=slang,mode_id=1)
-                t.options = options
                 t.mode_id = 1
                 t.language = slang
                 t.original=unit.getsource().strings[1]
@@ -101,21 +106,14 @@ def import_file(file, prj, lang=None):
             targets = unit.gettarget().strings
             for mode_id in range(len(targets)):
                 t,tc = p.translations.get_or_create(language=tlang,mode_id=mode_id)
-                t.options = options
                 t.mode_id = mode_id
                 t.language = tlang
-                t.options['mode_formula'] = f.getheaderplural()[1]
                 t.original = targets[mode_id]
-                if unit.isfuzzy():
-                    t.options['fuzzy'] = True
                 t.save()
         else:
             t,tc = p.translations.get_or_create(language=tlang)
-            t.options = options
             t.original=unit.gettarget()
             t.mode_id = None
             t.language = tlang
-            if unit.isfuzzy():
-                t.options['fuzzy'] = True
             t.save()
         #print ">>>",unit.isfuzzy(),options.get('fuzzy','NOP'),unit.getsource()

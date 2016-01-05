@@ -64,9 +64,9 @@ class HasModeFilter(admin.SimpleListFilter):
 
     def queryset(self,request, queryset):
         if self.value() == 'True':
-            return queryset.annotate(trs=Count('translations'),lngs=Count('translations__language',distinct=True)).filter(trs__gt=F('lngs'))
+            return queryset.annotate(mds=Count('translations__mode_id')).filter(mds__gt=1)
         elif self.value() == 'False':
-            return queryset.annotate(trs=Count('translations'),lngs=Count('translations__language',distinct=True)).filter(trs=F('lngs'))
+            return queryset.annotate(mds=Count('translations__mode_id')).filter(mds__lte=1)
         return queryset
 
 class HasFormatFilter(admin.SimpleListFilter):
@@ -81,9 +81,9 @@ class HasFormatFilter(admin.SimpleListFilter):
 
     def queryset(self,request, queryset):
         if self.value() == 'True':
-            return queryset.filter(translations__options__contains='"format":')
+            return queryset.filter(options__contains='"format":')
         elif self.value() == 'False':
-            return queryset.exclude(translations__options__contains='"format":')
+            return queryset.exclude(options__contains='"format":')
         return queryset
 
 class HasFuzzyFilter(admin.SimpleListFilter):
@@ -98,9 +98,9 @@ class HasFuzzyFilter(admin.SimpleListFilter):
 
     def queryset(self,request, queryset):
         if self.value() == 'True':
-            return queryset.filter(translations__options__contains='"fuzzy":')
+            return queryset.filter(options__contains='"fuzzy": true')
         elif self.value() == 'False':
-            return queryset.exclude(translations__options__contains='"fuzzy":')
+            return queryset.exclude(options__contains='"fuzzy": true')
         return queryset
 
 
@@ -135,7 +135,7 @@ class TranslationInline(admin.StackedInline):
 class PhraseAdmin(admin.ModelAdmin):
 
     def get_list_display(self,*av,**kw):
-        return ('identity','project','has_mode','has_format','has_fuzzy')
+        return ('identity','project','get_has_mode','get_has_format','get_has_fuzzy')
 
     inlines = [
         TranslationInline,
