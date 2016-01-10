@@ -13,6 +13,92 @@ FORMATS = {
     # TODO: ALL OTHER FORMATS
 }
 
+TAG_SPLIT_RE = re.compile(r'[^a-zA-Z]+')
+
+def extract_phrase_source(prj,unit):
+    slang = unit.getsourcelanguage() or 'en'
+    phrase_options = extract_formats(unit)
+    phrase_tags = []
+    if unit.getcontext():
+        phrase_tags = TAG_SPLIT_RE.split(unit.getcontext())
+    tags = [t for t in phrase_tags if t]
+
+    if prj.identity_method == 'orig':
+        message_options = {}
+        msgid = extract_message(unit.getsource(),phrase_options,message_options)
+        p = prj.get_phrase(msgid,tags)
+        if not p:
+            p = prj.phrases.create(options=phrase_options)
+            t = p.translations.create(original=unit.getsource(),language=slang)
+            p.orig_identity = t
+        else:
+            p.options = phrase_options
+            t = p.translations.get(message=msgid,language=slang)
+            t.original = unit.getsource()
+            t.save()
+    else:
+        msgid=unit.getsource()
+        p = prj.get_phrase(msgid,tags)
+        if not p:
+            identity = dict(int_identity=int(msgid)) if prj.identity_method == 'int' else dict(enum_identity=msgid)
+            p = prj.phrases.create(options=phrase_options,**identity)
+        else:
+            p.options = phrase_options
+    p.save()
+    p.tags.clear()
+    p.tags.add(*tags)
+    if unit.hasplural():
+        if prj.identity_method == 'orig':
+            p.orig_identity.mode_id = 0
+            p.orig_identity.save()
+            t,tc = p.translations.get_or_create(language=slang,mode_id=1)
+            t.mode_id = 1
+            t.language = slang
+            t.original=unit.getsource().strings[1]
+            t.save()
+    return p
+
+def extract_phrase_target(phrase,unit,lang,headerplural):
+    tlang = lang # not valid in common case! or unit.gettargetlanguage()
+    prj = phrase.project
+
+    if unit.hasplural():
+        targets = unit.gettarget().strings
+        for mode_id in range(len(targets)):
+            t,tc = phrase.translations.get_or_create(language=tlang,mode_id=mode_id)
+            t.mode_id = mode_id
+            t.language = tlang
+            t.options = {}
+            t.options['mode_formula'] = headerplural
+            if targets[mode_id]:
+                t.original = targets[mode_id]
+            else:
+                if len(unit.getsource().strings) > mode_id:
+                    t.original = unit.getsource().strings[mode_id]
+                    t.options['source'] = True
+                else:
+                    t.original = unit.getsource().strings[-1]
+                    t.options['source'] = True
+            t.save()
+    else:
+        t,tc = phrase.translations.get_or_create(language=tlang)
+        t.mode_id = None
+        t.language = tlang
+        t.options = {}
+        t.original=unit.gettarget()
+        if unit.gettarget():
+            t.original=unit.gettarget()
+        else:
+            t.original = unit.getsource()
+            t.options['source'] = True
+        t.save()
+    return phrase
+
+def extract_phrase(prj,unit,lang,headerplural):
+    p = extract_phrase_source(prj,unit)
+    extract_phrase_target(p,unit,lang,headerplural)
+    return p
+
 def extract_message(msg,phrase_options,message_options):
     f = phrase_options.get('format',None)
     if not f:
@@ -66,54 +152,4 @@ def import_file(file, prj, lang=None):
     if not lang:
         raise Exception("Language not set")
     for unit in f.getunits():
-        tlang = unit.gettargetlanguage() or lang
-        slang = unit.getsourcelanguage() or 'en'
-        phrase_options = extract_formats(unit)
-
-        if prj.identity_method == 'orig':
-            message_options = {}
-            msgid = extract_message(unit.getsource(),phrase_options,message_options)
-            p = prj.get_phrase(msgid)
-            if not p:
-                p = prj.phrases.create(options=phrase_options)
-                t = p.translations.create(original=unit.getsource(),language=slang)
-                p.orig_identity = t
-            else:
-                p.options = phrase_options
-                t = p.translations.get(message=msgid,language=slang)
-                t.original = unit.getsource()
-                t.save()
-        else:
-            msgid=unit.getsource()
-            p = prj.get_phrase(msgid)
-            if not p:
-                identity = dict(int_identity=int(msgid)) if prj.identity_method == 'int' else dict(enum_identity=msgid)
-                p = prj.phrases.create(options=phrase_options,**identity)
-            else:
-                p.options = phrase_options
-        p.save()
-        if unit.hasplural():
-            if prj.identity_method == 'orig':
-                p.orig_identity.mode_id = 0
-                p.orig_identity.save()
-                t,tc = p.translations.get_or_create(language=slang,mode_id=1)
-                t.mode_id = 1
-                t.language = slang
-                t.original=unit.getsource().strings[1]
-                t.save()
-            targets = unit.gettarget().strings
-            for mode_id in range(len(targets)):
-                t,tc = p.translations.get_or_create(language=tlang,mode_id=mode_id)
-                t.mode_id = mode_id
-                t.language = tlang
-                t.original = targets[mode_id]
-                t.options = {}
-                t.options['mode_formula'] = f.getheaderplural()[1]
-                t.save()
-        else:
-            t,tc = p.translations.get_or_create(language=tlang)
-            t.original=unit.gettarget()
-            t.mode_id = None
-            t.language = tlang
-            t.save()
-        #print ">>>",unit.isfuzzy(),options.get('fuzzy','NOP'),unit.getsource()
+        extract_phrase(prj,unit,lang,f.getheaderplural()[1])

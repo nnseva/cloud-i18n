@@ -33,14 +33,23 @@ class Project(models.Model):
     def __unicode__(self):
         return "%s: %s" % (self.url,self.name)
 
-    def get_phrase(self,msgid):
+    def get_phrase(self,msgid,tags):
+        kw = {}
+        if tags:
+            kw = {'tags__name__in':tags}
+        elif tags is not None:
+            kw = {'tags__isnull':True}
         if self.identity_method == 'int':
-            q = self.phrases.filter(int_identity=int(msgid))
+            q = self.phrases.filter(int_identity=int(msgid),**kw)
         elif self.identity_method == 'enum':
-            q = self.phrases.filter(enum_identity=msgid)
+            q = self.phrases.filter(enum_identity=msgid,**kw)
         elif self.identity_method == 'orig':
-            q = self.phrases.filter(orig_identity__message=msgid)
-        return q[0] if q else None
+            q = self.phrases.filter(orig_identity__message=msgid,**kw)
+        if not q:
+            if tags:
+                return self.get_phrase(msgid,[])
+            return None
+        return q.annotate(cnt=Count('tags')).order_by('-cnt')[0]
 
 class ProjectUser(models.Model):
     '''

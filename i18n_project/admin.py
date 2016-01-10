@@ -154,7 +154,7 @@ class PhraseAdmin(admin.ModelAdmin):
         return ('project',obj.project.identity_method+'_identity','tags','options')
 
     def get_search_fields(self,request,*av,**kw):
-        return ('enum_identity','int_identity','translations__message')
+        return ('enum_identity','int_identity','translations__message','translation__original')
 
     def get_readonly_fields(self,request,obj=None):
         if not obj:
